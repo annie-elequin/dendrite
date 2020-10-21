@@ -1,0 +1,10 @@
+name: dendrite-monolith
+image: debian-9-x64
+min_size: 1gb
+config:
+  #cloud-config
+  # packages:
+  #   - wget
+  runcmd:
+    - touch hello.txt
+    - echo "wow hey there" > hello.txt
