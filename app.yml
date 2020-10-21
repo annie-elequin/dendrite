@@ -4,6 +4,9 @@ min_size: 1gb
 config:
   packages:
     - git
+    - golang
   runcmd:
-    - touch hello.txt
-    - echo "wow hey there" > hello.txt
+    - git clone https://github.com/matrix-org/dendrite
+    - cd dendrite
+    - go build -o bin/dendrite-monolith-server ./cmd/dendrite-monolith-server
+    - go build -o bin/generate-keys ./cmd/generate-keys
