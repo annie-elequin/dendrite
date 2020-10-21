@@ -1,10 +1,9 @@
 name: dendrite-monolith
-image: debian-9-x64
+image: ubuntu-20-04-x64
 min_size: 1gb
 config:
-  #cloud-config
-  # packages:
-  #   - wget
+  packages:
+    - git
   runcmd:
     - touch hello.txt
     - echo "wow hey there" > hello.txt
