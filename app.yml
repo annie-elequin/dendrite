@@ -6,9 +6,8 @@ config:
     - git
     - golang
   runcmd:
-    - cd ~
     - git clone https://github.com/matrix-org/dendrite
-    - echo "hey there" > test.txt
     - cd dendrite
     - go build -o bin/dendrite-monolith-server ./cmd/dendrite-monolith-server
     - go build -o bin/generate-keys ./cmd/generate-keys
+    - ./bin/generate-keys --private-key matrix_key.pem --tls-cert server.crt --tls-key server.key
