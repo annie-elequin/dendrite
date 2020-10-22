@@ -6,6 +6,9 @@ config:
     - git
     - golang
   runcmd:
+    - touch test.txt
+    - echo "hi" > test.txt
+    - echo "go --version" > go.txt
     - git clone https://github.com/matrix-org/dendrite
     - cd dendrite
     - go build -o bin/dendrite-monolith-server ./cmd/dendrite-monolith-server
