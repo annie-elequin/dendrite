@@ -1,19 +1,9 @@
 name: dendrite-monolith
-image: ubuntu-20-04-x64
+image: debian-9-x64
 min_size: 1gb
 config:
   packages:
-    - git
-    - golang
-    - docker
+    - wget
   runcmd:
-    - touch test.txt
-    - echo "hi" > test.txt
-    - echo "go --version" > go.txt
-    - echo "docker version" > docker.txt
-    - git clone https://github.com/matrix-org/dendrite
-    - cd dendrite
-    # - go run github.com/matrix-org/dendrite/cmd/generate-keys \
-    # - --private-key=matrix_key.pem \
-    # - --tls-cert=server.crt \
-    # - --tls-key=server.key
+    - wget https://raw.githubusercontent.com/annie-elequin/dendrite/master/installmonolith.sh
+    - bash installmonolith.sh
