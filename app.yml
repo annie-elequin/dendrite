@@ -5,12 +5,15 @@ config:
   packages:
     - git
     - golang
+    - docker
   runcmd:
     - touch test.txt
     - echo "hi" > test.txt
     - echo "go --version" > go.txt
+    - echo "docker version" > docker.txt
     - git clone https://github.com/matrix-org/dendrite
     - cd dendrite
-    - go build -o bin/dendrite-monolith-server ./cmd/dendrite-monolith-server
-    - go build -o bin/generate-keys ./cmd/generate-keys
-    - ./bin/generate-keys --private-key matrix_key.pem --tls-cert server.crt --tls-key server.key
+    # - go run github.com/matrix-org/dendrite/cmd/generate-keys \
+    # - --private-key=matrix_key.pem \
+    # - --tls-cert=server.crt \
+    # - --tls-key=server.key
