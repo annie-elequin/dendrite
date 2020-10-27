@@ -6,7 +6,7 @@ cd ~
 # install docker
 #
 sudo apt update
-# sudo apt install -y curl dnsutils apt-transport-https ca-certificates software-properties-common
+sudo apt install -y curl dnsutils apt-transport-https ca-certificates software-properties-common
 wget https://download.docker.com/linux/debian/gpg -O docker-gpg
 sudo apt-key add docker-gpg
 echo "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee -a /etc/apt/sources.list.d/docker.list
@@ -16,9 +16,22 @@ sudo systemctl start docker
 sudo systemctl enable docker
 
 #
+# install golang
+#
+curl -O https://dl.google.com/go/go1.12.7.linux-amd64.tar.gz
+tar xvf go1.12.7.linux-amd64.tar.gz
+sudo chown -R root:root ./go
+sudo mv go /usr/local
+
+#
 # install ssb-pub image
 #
 # docker pull ahdinosaur/ssb-pub
+
+#
+# pull dendrite docker image
+#
+docker pull matrixdotorg/dendrite
 
 #
 # create sbot container
