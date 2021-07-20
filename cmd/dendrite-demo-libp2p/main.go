@@ -44,6 +44,8 @@ import (
 	"github.com/matrix-org/dendrite/eduserver/cache"
 
 	"github.com/sirupsen/logrus"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func createKeyDB(
@@ -76,9 +78,10 @@ func createFederationClient(
 		"matrix",
 		p2phttp.NewTransport(base.LibP2P, p2phttp.ProtocolOption("/matrix")),
 	)
-	return gomatrixserverlib.NewFederationClientWithTransport(
+	return gomatrixserverlib.NewFederationClient(
 		base.Base.Cfg.Global.ServerName, base.Base.Cfg.Global.KeyID,
-		base.Base.Cfg.Global.PrivateKey, true, tr,
+		base.Base.Cfg.Global.PrivateKey,
+		gomatrixserverlib.WithTransport(tr),
 	)
 }
 
@@ -90,7 +93,9 @@ func createClient(
 		"matrix",
 		p2phttp.NewTransport(base.LibP2P, p2phttp.ProtocolOption("/matrix")),
 	)
-	return gomatrixserverlib.NewClientWithTransport(tr)
+	return gomatrixserverlib.NewClient(
+		gomatrixserverlib.WithTransport(tr),
+	)
 }
 
 func main() {
@@ -163,7 +168,7 @@ func main() {
 	asAPI := appservice.NewInternalAPI(&base.Base, userAPI, rsAPI)
 	rsAPI.SetAppserviceAPI(asAPI)
 	fsAPI := federationsender.NewInternalAPI(
-		&base.Base, federation, rsAPI, keyRing,
+		&base.Base, federation, rsAPI, keyRing, true,
 	)
 	rsAPI.SetFederationSenderAPI(fsAPI)
 	provider := newPublicRoomsProvider(base.LibP2PPubsub, rsAPI)
@@ -189,10 +194,12 @@ func main() {
 		ExtPublicRoomsProvider: provider,
 	}
 	monolith.AddAllPublicRoutes(
+		base.Base.ProcessContext,
 		base.Base.PublicClientAPIMux,
 		base.Base.PublicFederationAPIMux,
 		base.Base.PublicKeyAPIMux,
 		base.Base.PublicMediaAPIMux,
+		base.Base.SynapseAdminMux,
 	)
 	if err := mscs.Enable(&base.Base, &monolith); err != nil {
 		logrus.WithError(err).Fatalf("Failed to enable MSCs")
@@ -231,5 +238,5 @@ func main() {
 	}
 
 	// We want to block forever to let the HTTP and HTTPS handler serve the APIs
-	select {}
+	base.Base.WaitForShutdown()
 }

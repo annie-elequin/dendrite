@@ -43,12 +43,17 @@ func NewInternalAPI(
 	federation *gomatrixserverlib.FederationClient,
 	rsAPI roomserverAPI.RoomserverInternalAPI,
 	keyRing *gomatrixserverlib.KeyRing,
+	resetBlacklist bool,
 ) api.FederationSenderInternalAPI {
 	cfg := &base.Cfg.FederationSender
 
 	federationSenderDB, err := storage.NewDatabase(&cfg.Database, base.Caches)
 	if err != nil {
 		logrus.WithError(err).Panic("failed to connect to federation sender db")
+	}
+
+	if resetBlacklist {
+		_ = federationSenderDB.RemoveAllServersFromBlacklist()
 	}
 
 	stats := &statistics.Statistics{
@@ -59,7 +64,8 @@ func NewInternalAPI(
 	consumer, _ := kafka.SetupConsumerProducer(&cfg.Matrix.Kafka)
 
 	queues := queue.NewOutgoingQueues(
-		federationSenderDB, cfg.Matrix.DisableFederation,
+		federationSenderDB, base.ProcessContext,
+		cfg.Matrix.DisableFederation,
 		cfg.Matrix.ServerName, federation, rsAPI, stats,
 		&queue.SigningInfo{
 			KeyID:      cfg.Matrix.KeyID,
@@ -69,7 +75,7 @@ func NewInternalAPI(
 	)
 
 	rsConsumer := consumers.NewOutputRoomEventConsumer(
-		cfg, consumer, queues,
+		base.ProcessContext, cfg, consumer, queues,
 		federationSenderDB, rsAPI,
 	)
 	if err = rsConsumer.Start(); err != nil {
@@ -77,13 +83,13 @@ func NewInternalAPI(
 	}
 
 	tsConsumer := consumers.NewOutputEDUConsumer(
-		cfg, consumer, queues, federationSenderDB,
+		base.ProcessContext, cfg, consumer, queues, federationSenderDB,
 	)
 	if err := tsConsumer.Start(); err != nil {
 		logrus.WithError(err).Panic("failed to start typing server consumer")
 	}
 	keyConsumer := consumers.NewKeyChangeConsumer(
-		&base.Cfg.KeyServer, consumer, queues, federationSenderDB, rsAPI,
+		base.ProcessContext, &base.Cfg.KeyServer, consumer, queues, federationSenderDB, rsAPI,
 	)
 	if err := keyConsumer.Start(); err != nil {
 		logrus.WithError(err).Panic("failed to start key server consumer")

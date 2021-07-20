@@ -44,6 +44,8 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 
 	"github.com/sirupsen/logrus"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -52,26 +54,27 @@ var (
 	instancePeer = flag.String("peer", "", "an internet Yggdrasil peer to connect to")
 )
 
-// nolint:gocyclo
 func main() {
 	flag.Parse()
 	internal.SetupPprof()
 
-	ygg, err := yggconn.Setup(*instanceName, ".")
+	ygg, err := yggconn.Setup(*instanceName, ".", *instancePeer)
 	if err != nil {
 		panic(err)
 	}
-	ygg.SetMulticastEnabled(true)
-	if instancePeer != nil && *instancePeer != "" {
-		if err = ygg.SetStaticPeer(*instancePeer); err != nil {
-			logrus.WithError(err).Error("Failed to set static peer")
+	/*
+		ygg.SetMulticastEnabled(true)
+		if instancePeer != nil && *instancePeer != "" {
+			if err = ygg.SetStaticPeer(*instancePeer); err != nil {
+				logrus.WithError(err).Error("Failed to set static peer")
+			}
 		}
-	}
+	*/
 
 	cfg := &config.Dendrite{}
 	cfg.Defaults()
 	cfg.Global.ServerName = gomatrixserverlib.ServerName(ygg.DerivedServerName())
-	cfg.Global.PrivateKey = ygg.SigningPrivateKey()
+	cfg.Global.PrivateKey = ygg.PrivateKey()
 	cfg.Global.KeyID = gomatrixserverlib.KeyID(signing.KeyID)
 	cfg.Global.Kafka.UseNaffka = true
 	cfg.UserAPI.AccountDatabase.ConnectionString = config.DataSource(fmt.Sprintf("file:%s-account.db", *instanceName))
@@ -115,20 +118,8 @@ func main() {
 	asAPI := appservice.NewInternalAPI(base, userAPI, rsAPI)
 	rsAPI.SetAppserviceAPI(asAPI)
 	fsAPI := federationsender.NewInternalAPI(
-		base, federation, rsAPI, keyRing,
+		base, federation, rsAPI, keyRing, true,
 	)
-
-	ygg.SetSessionFunc(func(address string) {
-		req := &api.PerformServersAliveRequest{
-			Servers: []gomatrixserverlib.ServerName{
-				gomatrixserverlib.ServerName(address),
-			},
-		}
-		res := &api.PerformServersAliveResponse{}
-		if err := fsAPI.PerformServersAlive(context.TODO(), req, res); err != nil {
-			logrus.WithError(err).Error("Failed to send wake-up message to newly connected node")
-		}
-	})
 
 	rsComponent.SetFederationSenderAPI(fsAPI)
 
@@ -150,10 +141,12 @@ func main() {
 		),
 	}
 	monolith.AddAllPublicRoutes(
+		base.ProcessContext,
 		base.PublicClientAPIMux,
 		base.PublicFederationAPIMux,
 		base.PublicKeyAPIMux,
 		base.PublicMediaAPIMux,
+		base.SynapseAdminMux,
 	)
 	if err := mscs.Enable(base, &monolith); err != nil {
 		logrus.WithError(err).Fatalf("Failed to enable MSCs")
@@ -200,5 +193,6 @@ func main() {
 		}
 	}()
 
-	select {}
+	// We want to block forever to let the HTTP and HTTPS handler serve the APIs
+	base.WaitForShutdown()
 }

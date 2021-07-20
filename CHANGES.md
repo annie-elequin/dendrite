@@ -1,12 +1,130 @@
 # Changelog
 
+## Dendrite 0.4.0 (2021-07-12)
+
+### Features
+
+* All-new state storage in the roomserver, which dramatically reduces disk space utilisation
+  * State snapshots and blocks are now aggressively deduplicated and reused wherever possible, with state blocks being reduced by up to 15x and snapshot references being reduced up to 2x
+  * Dendrite will upgrade to the new state storage automatically on the first run after upgrade, although this may take some time depending on the size of the state storage
+* Appservice support has been improved significantly, with many bridges now working correctly with Dendrite
+  * Events are now correctly sent to appservices based on room memberships
+  * Aliases and namespaces are now handled correctly, calling the appservice to query for aliases as needed
+  * Appservice user registrations are no longer being subject to incorrect validation checks
+* Shared secret registration has now been implemented correctly
+* The roomserver input API implements a new queuing system to reduce backpressure across rooms
+* Checking if the local server is in a room has been optimised substantially, reducing CPU usage
+* State resolution v2 has been optimised further by improving the power level checks, reducing CPU usage
+* The federation API `/send` endpoint now deduplicates missing auth and prev events more aggressively to reduce memory usage
+* The federation API `/send` endpoint now uses workers to reduce backpressure across rooms
+* The bcrypt cost for password storage is now configurable with the `user_api.bcrypt_cost` option
+* The federation API will now use significantly less memory when calling `/get_missing_events`
+* MSC2946 Spaces endpoints have been updated to stable endpoint naming
+* The media API can now be configured without a maximum file size
+* A new `dendrite-upgrade-test` test has been added for verifying database schema upgrades across versions
+* Added Prometheus metrics for roomserver backpressure, excessive device list updates and federation API event processing summaries
+* Sentry support has been added for error reporting
+
+### Fixes
+
+* Removed the legacy `/v1` register endpoint. Dendrite only implements `/r0` of the CS API, and the legacy `/v1` endpoint had implementation errors which made it possible to bypass shared secret registration (thanks to Jakob Varmose Bentzen for reporting this)
+* Attempting to register an account that already exists now returns a sensible error code rather than a HTTP 500
+* Dendrite will no longer attempt to `/make_join` with itself if listed in the request `server_names`
+* `/sync` will no longer return immediately if there is nothing to sync, which happened particularly with new accounts, causing high CPU usage
+* Malicious media uploads can no longer exhaust all available memory (contributed by [S7evinK](https://github.com/S7evinK))
+* Selecting one-time keys from the database has been optimised (contributed by [S7evinK](https://github.com/S7evinK))
+* The return code when trying to fetch missing account data has been fixed (contributed by [adamgreig](https://github.com/adamgreig))
+* Dendrite will no longer attempt to use `/make_leave` over federation when rejecting a local invite
+* A panic has been fixed in `QueryMembershipsForRoom`
+* A panic on duplicate membership events has been fixed in the federation sender
+* A panic has been fixed in in `IsInterestedInRoomID` (contributed by [bodqhrohro](https://github.com/bodqhrohro))
+* A panic in the roomserver has been fixed when handling empty state sets
+* A panic in the federation API has been fixed when handling cached events
+
+## Dendrite 0.3.11 (2021-03-02)
+
+### Fixes
+
+- **SECURITY:** A bug in SQLite mode which could cause the registration flow to complete unexpectedly for existing accounts has been fixed (PostgreSQL deployments are not affected)
+- A panic in the federation sender has been fixed when shutting down destination queues
+- The `/keys/upload` endpoint now correctly returns the number of one-time keys in response to an empty upload request
+
+## Dendrite 0.3.10 (2021-02-17)
+
+### Features
+
+* In-memory caches will now gradually evict old entries, reducing idle memory usage
+* Federation sender queues will now be fully unloaded when idle, reducing idle memory usage
+* The `power_level_content_override` option is now supported in `/createRoom`
+* The `/send` endpoint will now attempt more servers in the room when trying to fetch missing events or state
+
+### Fixes
+
+* A panic in the membership updater has been fixed
+* Events in the sync API that weren't excluded from sync can no longer be incorrectly excluded from sync by backfill
+* Retrieving remote media now correcly respects the locally configured maximum file size, even when the `Content-Length` header is unavailable
+* The `/send` endpoint will no longer hit the database more than once to find servers in the room
+
+## Dendrite 0.3.9 (2021-02-04)
+
+### Features
+
+* Performance of initial/complete syncs has been improved dramatically
+* State events that can't be authed are now dropped when joining a room rather than unexpectedly causing the room join to fail
+* State events that already appear in the timeline will no longer be requested from the sync API database more than once, which may reduce memory usage in some cases
+
+### Fixes
+
+* A crash at startup due to a conflict in the sync API account data has been fixed
+* A crash at startup due to mismatched event IDs in the federation sender has been fixed
+* A redundant check which may cause the roomserver memberships table to get out of sync has been removed
+
+## Dendrite 0.3.8 (2021-01-28)
+
+### Fixes
+
+* A well-known lookup regression in version 0.3.7 has been fixed
+
+## Dendrite 0.3.7 (2021-01-26)
+
+### Features
+
+* Sync filtering support (for event types, senders and limits)
+* In-process DNS caching support for deployments where a local DNS caching resolver is not available (disabled by default)
+* Experimental support for MSC2444 (Peeking over Federation) has been merged
+* Experimental federation support for MSC2946 (Spaces Summary) has been merged
+
+### Fixes
+
+* Dendrite will no longer load a given event more than once for state resolution, which may help to reduce memory usage and database I/O slightly in some cases
+* Large well-known responses will no longer use significant amounts of memory
+
+## Dendrite 0.3.6 (2021-01-18)
+
+### Features
+
+* Experimental support for MSC2946 (Spaces Summary) has been merged
+* Send-to-device messages have been refactored and now take advantage of having their own stream position, making delivery more reliable
+* Unstable features and MSCs are now listed in `/versions` (contributed by [sumitks866](https://github.com/sumitks866))
+* Well-known and DNS SRV record results for federated servers are now cached properly, improving outbound federation performance and reducing traffic
+
+### Fixes
+
+* Updating forward extremities will no longer result in so many unnecessary state snapshots, reducing on-going disk usage in the roomserver database
+* Pagination tokens for `/messages` have been fixed, which should improve the reliability of scrollback/pagination
+* Dendrite now avoids returning `null`s in fields of the `/sync` response, and omitting some fields altogether when not needed, which should fix sync issues with Element Android
+* Requests for user device lists now time out quicker, which prevents federated `/send` requests from also timing out in many cases
+* Empty push rules are no longer sent over and over again in `/sync`
+* An integer overflow in the device list updater which could result in panics on 32-bit platforms has been fixed (contributed by [Lesterpig](https://github.com/Lesterpig))
+* Event IDs are now logged properly in federation sender and sync API consumer errors
+
 ## Dendrite 0.3.5 (2021-01-11)
 
 ### Features
 
 * All `/sync` streams are now logically separate after a refactoring exercise
 
-## Fixes
+### Fixes
 
 * Event references are now deeply checked properly when calculating forward extremities, reducing the amount of forward extremities in most cases, which improves RAM utilisation and reduces the work done by state resolution
 * Sync no longer sends incorrect `next_batch` tokens with old stream positions, reducing flashbacks of old messages in clients

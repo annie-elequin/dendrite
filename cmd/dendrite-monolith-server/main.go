@@ -31,6 +31,8 @@ import (
 	"github.com/matrix-org/dendrite/signingkeyserver"
 	"github.com/matrix-org/dendrite/userapi"
 	"github.com/sirupsen/logrus"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -99,7 +101,7 @@ func main() {
 	}
 
 	fsAPI := federationsender.NewInternalAPI(
-		base, federation, rsAPI, keyRing,
+		base, federation, rsAPI, keyRing, false,
 	)
 	if base.UseHTTPAPIs {
 		federationsender.AddInternalRoutes(base.InternalAPIMux, fsAPI)
@@ -144,10 +146,12 @@ func main() {
 		KeyAPI:              keyAPI,
 	}
 	monolith.AddAllPublicRoutes(
+		base.ProcessContext,
 		base.PublicClientAPIMux,
 		base.PublicFederationAPIMux,
 		base.PublicKeyAPIMux,
 		base.PublicMediaAPIMux,
+		base.SynapseAdminMux,
 	)
 
 	if len(base.Cfg.MSCs.MSCs) > 0 {
@@ -176,5 +180,5 @@ func main() {
 	}
 
 	// We want to block forever to let the HTTP and HTTPS handler serve the APIs
-	select {}
+	base.WaitForShutdown()
 }

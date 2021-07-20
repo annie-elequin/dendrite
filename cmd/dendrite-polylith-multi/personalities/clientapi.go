@@ -33,8 +33,9 @@ func ClientAPI(base *setup.BaseDendrite, cfg *config.Dendrite) {
 	keyAPI := base.KeyServerHTTPClient()
 
 	clientapi.AddPublicRoutes(
-		base.PublicClientAPIMux, &base.Cfg.ClientAPI, accountDB, federation,
+		base.PublicClientAPIMux, base.SynapseAdminMux, &base.Cfg.ClientAPI, accountDB, federation,
 		rsAPI, eduInputAPI, asQuery, transactions.New(), fsAPI, userAPI, keyAPI, nil,
+		&cfg.MSCs,
 	)
 
 	base.SetupAndServeHTTP(
